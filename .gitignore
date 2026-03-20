@@ -5,9 +5,6 @@
 __pycache__/
 *.pyc
 
-# raw datasets
-data/raw/
-
 # trained models
 checkpoints/
 *.pt
@@ -19,3 +16,12 @@ outputs/
 # editor files
 .vscode/
 .idea/
+
+# ignore only video folders inside raw data
+data/raw/**/videos/
+
+# optional: also ignore loose video files inside raw data
+data/raw/**/*.mp4
+data/raw/**/*.avi
+data/raw/**/*.mov
+data/raw/**/*.mkv
