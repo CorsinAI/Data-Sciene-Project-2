@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs du -sh)",
+      "Bash(cd \"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2\" && git log --all --oneline && git ls-tree -r HEAD --name-only | head -40)"
+    ]
+  }
+}
