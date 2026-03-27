@@ -2,9 +2,7 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-# CSV_PATH = PROJECT_ROOT / "data" / "processed" / "wlasl_model_metadata_min_frames_8.csv"
-CSV_PATH = PROJECT_ROOT / "data" / "processed" / "custom_metadata.csv"
-
+CSV_PATH = PROJECT_ROOT / "data" / "raw" / "custom" / "custom_metadata.csv"
 df = pd.read_csv(CSV_PATH)
 
 print("Total samples:", len(df))

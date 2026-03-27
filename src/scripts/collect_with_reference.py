@@ -7,10 +7,11 @@ from pathlib import Path
 # -----------------------------
 # CONFIG
 # -----------------------------
-BASE_DIR = Path(__file__).resolve().parent.parent
-REFERENCE_ROOT = BASE_DIR / "wlasl_processed" / "videos"
-CUSTOM_ROOT = BASE_DIR  / "videos"
-METADATA_CSV = BASE_DIR / "custom_metadata.csv"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+REFERENCE_ROOT = PROJECT_ROOT / "data" / "raw" / "WLASL" / "videos"
+CUSTOM_ROOT = PROJECT_ROOT / "data" / "raw" / "custom" / "videos"
+METADATA_CSV = PROJECT_ROOT / "data" / "raw" / "custom" / "custom_metadata.csv"
 
 SIGNER_ID = 1
 FPS = 25
@@ -43,7 +44,6 @@ def make_window(window_name: str):
     cv2.resizeWindow(window_name, WIDTH, HEIGHT)
     cv2.moveWindow(window_name, 80, 60)
 
-    # Try to force window to front on supported OpenCV builds
     try:
         cv2.setWindowProperty(window_name, cv2.WND_PROP_TOPMOST, 1)
     except Exception:
@@ -291,7 +291,7 @@ def choose_gloss():
 
 
 def main():
-    print(f"BASE_DIR: {BASE_DIR}")
+    print(f"PROJECT_ROOT: {PROJECT_ROOT}")
     print(f"REFERENCE_ROOT: {REFERENCE_ROOT}")
     print(f"CUSTOM_ROOT: {CUSTOM_ROOT}")
     print(f"METADATA_CSV: {METADATA_CSV}")

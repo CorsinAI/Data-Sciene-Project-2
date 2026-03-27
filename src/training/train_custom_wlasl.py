@@ -18,6 +18,7 @@ from torchvision import models
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CUSTOM_VIDEO_DIR = PROJECT_ROOT / "data" / "raw" / "custom" / "videos"
+CUSTOM_METADATA_PATH = PROJECT_ROOT / "data" / "raw" / "custom" / "custom_metadata.csv"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 REPORT_DIR = PROJECT_ROOT / "outputs" / "reports" / "custom_wlasl"
 CHECKPOINT_DIR = PROJECT_ROOT / "checkpoints"
@@ -61,7 +62,7 @@ MIN_VIDEOS_PER_CLASS = 8
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-#ImageNet normalization values
+# ImageNet normalization values
 IMAGENET_MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 IMAGENET_STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
@@ -73,29 +74,35 @@ def set_seed(seed=42):
     torch.cuda.manual_seed_all(seed)
 
 
-def build_metadata_from_folders(video_root: Path) -> pd.DataFrame:
-    if not video_root.exists():
-        raise FileNotFoundError(f"Could not find custom video folder: {video_root}")
+def build_metadata_from_csv(metadata_path: Path) -> pd.DataFrame:
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Could not find custom metadata file: {metadata_path}")
 
-    rows = []
+    df = pd.read_csv(metadata_path)
 
-    for gloss_folder in sorted(video_root.iterdir()):
-        if not gloss_folder.is_dir():
-            continue
+    required_columns = {"file_path", "gloss"}
+    missing_columns = required_columns - set(df.columns)
+    if missing_columns:
+        raise ValueError(f"Metadata file is missing required columns: {sorted(missing_columns)}")
 
-        gloss = gloss_folder.name
+    df = df.copy()
 
-        for file_path in sorted(gloss_folder.iterdir()):
-            if file_path.is_file() and file_path.suffix.lower() in ALLOWED_EXTENSIONS:
-                rows.append({
-                    "video_path": str(file_path.resolve()),
-                    "gloss": gloss
-                })
+    df["video_path"] = df["file_path"].astype(str).apply(lambda p: str(Path(p).resolve()))
 
-    df = pd.DataFrame(rows)
+    df = df[df["video_path"].apply(lambda p: Path(p).suffix.lower() in ALLOWED_EXTENSIONS)].copy()
+
+    df["file_exists"] = df["video_path"].apply(lambda p: Path(p).exists())
+
+    missing_df = df[~df["file_exists"]].copy()
+    if not missing_df.empty:
+        print("\nWarning: these metadata entries point to missing files and will be skipped:")
+        print(missing_df[["gloss", "video_path"]].head(20))
+
+    df = df[df["file_exists"]].copy()
+    df = df.drop(columns=["file_exists"])
 
     if df.empty:
-        raise ValueError(f"No videos found in {video_root}")
+        raise ValueError(f"No valid videos found in metadata file: {metadata_path}")
 
     return df
 
@@ -250,7 +257,11 @@ def evaluate(model, loader, criterion, device):
 def main():
     set_seed(SEED)
 
-    df = build_metadata_from_folders(CUSTOM_VIDEO_DIR)
+    print(f"PROJECT_ROOT: {PROJECT_ROOT}")
+    print(f"CUSTOM_VIDEO_DIR: {CUSTOM_VIDEO_DIR}")
+    print(f"CUSTOM_METADATA_PATH: {CUSTOM_METADATA_PATH}")
+
+    df = build_metadata_from_csv(CUSTOM_METADATA_PATH)
 
     class_counts = df["gloss"].value_counts()
     valid_classes = class_counts[class_counts >= MIN_VIDEOS_PER_CLASS].index.tolist()

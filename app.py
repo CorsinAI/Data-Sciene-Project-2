@@ -3,7 +3,7 @@ import tempfile
 import os
 from src.predict import predict_video
 
-st.title("Gebärdensprache Erkennung 🤟")
+st.title("Sign Language Recognition")
 st.write("Lade ein Video hoch und das Modell erkennt das Wort.")
 
 uploaded_file = st.file_uploader("Video hochladen", type=["mp4", "mov", "avi"])
