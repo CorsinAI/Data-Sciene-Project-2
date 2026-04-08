@@ -1,0 +1,3 @@
+name,accuracy,macro_f1,train_samples,test_samples,mediapipe_failed_detections,mediapipe_failed_pct
+Custom,0.9870867768595041,0.9864589990902246,7741,1936,0,0.0
+MediaPipe,0.05010330578512397,0.011037730328540506,7741,1936,9595,0.9915262994729772

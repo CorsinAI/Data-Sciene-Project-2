@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(xargs du -sh)",
-      "Bash(cd \"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2\" && git log --all --oneline && git ls-tree -r HEAD --name-only | head -40)"
+      "Bash(cd \"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2\" && git log --all --oneline && git ls-tree -r HEAD --name-only | head -40)",
+      "Bash(find \"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2/data/dataset2/own_dataset/\" -type f -name \"*.jpg\" -o -name \"*.png\" | head -5 | xargs ls -lh)",
+      "Bash(done)",
+      "Bash(cd \"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2/data/dataset2/own_dataset\" && file A/Image*.jpg | head -1)",
+      "Bash(cd \"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2/data/dataset1/hand_keypoint_dataset_26k/hand_keypoint_dataset_26k\" && head -3 labels/train/*.txt | head -20)",
+      "Bash(python3 << 'EOF'\nfrom pathlib import Path\ndataset1_dir = Path\\(\"/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2/data/dataset1/hand_keypoint_dataset_26k/hand_keypoint_dataset_26k\"\\)\n\n# Count files\ntrain_imgs = list\\(\\(dataset1_dir / \"images\" / \"train\"\\).glob\\(\"*.jpg\"\\)\\)\nval_imgs = list\\(\\(dataset1_dir / \"images\" / \"val\"\\).glob\\(\"*.jpg\"\\)\\)\nprint\\(f\"Dataset1 \\(26K hand keypoints\\):\"\\)\nprint\\(f\"  Train images: {len\\(train_imgs\\)}\"\\)\nprint\\(f\"  Val images: {len\\(val_imgs\\)}\"\\)\nprint\\(f\"  Total: {len\\(train_imgs\\) + len\\(val_imgs\\)}\"\\)\nprint\\(f\"  Image size: {Path\\(train_imgs[0]\\).stat\\(\\).st_size / 1024:.1f}KB \\(avg\\)\"\\)\n\n# Check a label file\nlabel_file = \\(dataset1_dir / \"labels\" / \"train\" / train_imgs[0].stem\\).with_suffix\\(\".txt\"\\)\nif label_file.exists\\(\\):\n    with open\\(label_file\\) as f:\n        content = f.read\\(\\).strip\\(\\)\n    values = content.split\\(\\)\n    print\\(f\"\\\\nLabel format for one image:\"\\)\n    print\\(f\"  Total values in label: {len\\(values\\)}\"\\)\n    print\\(f\"  First 5 values: {values[:5]}\"\\)\n    print\\(f\"  Last 5 values: {values[-5:]}\"\\)\n    print\\(f\"  Expected: 21 keypoints * 3 \\(x, y, confidence\\) = 63 values\"\\)\nEOF)",
+      "Bash(python3 -c \"\nimport json\nwith open\\('/mnt/c/Users/corsi/Coding Projects/Data-Sciene-Project-2/data/dataset1/hand_keypoint_dataset_26k/hand_keypoint_dataset_26k/coco_annotation/train/_annotations.coco.json'\\) as f:\n    d = json.load\\(f\\)\nprint\\('annotations sample:', d['annotations'][0]\\)\nprint\\('total annotations:', len\\(d['annotations']\\)\\)\nprint\\('total images:', len\\(d['images']\\)\\)\n\" 2>&1 | head -20)"
     ]
   }
 }
