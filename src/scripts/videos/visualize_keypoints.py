@@ -1,6 +1,10 @@
 """
 visualize_keypoints.py — Extract the 32 trimmed frames from a video and draw
-red dots at every detected hand keypoint for visual inspection.
+all keypoints used by the transformer models:
+  - Left hand  : 21 landmarks  (red)
+  - Right hand : 21 landmarks  (green)
+  - Pose       : 33 landmarks  (blue)
+Total: 225 features per frame (63 + 63 + 99).
 
 Output: outputs/keypoint_viz/{video_stem}.gif  (opens in any browser or image viewer)
 
@@ -36,20 +40,30 @@ HAND_MODEL_URL  = (
     "https://storage.googleapis.com/mediapipe-models/"
     "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
 )
+POSE_MODEL_PATH = MODELS_DIR / "pose_landmarker_lite.task"
+POSE_MODEL_URL  = (
+    "https://storage.googleapis.com/mediapipe-models/"
+    "pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task"
+)
 
-MAX_FRAMES   = 32
-DOT_RADIUS   = 5
-DOT_COLOR    = (0, 0, 255)   # red (BGR)
-MS_PER_FRAME = 250           # 250 ms per frame = 4 fps
+MAX_FRAMES        = 32
+DOT_RADIUS        = 5
+COLOR_LEFT_HAND   = (0,   0,   255)  # red   (BGR)
+COLOR_RIGHT_HAND  = (0,   255, 0  )  # green (BGR)
+COLOR_POSE        = (255, 0,   0  )  # blue  (BGR)
+MS_PER_FRAME      = 250              # 250 ms per frame = 4 fps
 
 
 # ── Model ─────────────────────────────────────────────────────────────────────
 
-def ensure_model():
+def ensure_models():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     if not HAND_MODEL_PATH.exists():
         print("Downloading hand model...")
         urllib.request.urlretrieve(HAND_MODEL_URL, HAND_MODEL_PATH)
+    if not POSE_MODEL_PATH.exists():
+        print("Downloading pose model...")
+        urllib.request.urlretrieve(POSE_MODEL_URL, POSE_MODEL_PATH)
 
 
 def _make_hand_landmarker():
@@ -62,6 +76,17 @@ def _make_hand_landmarker():
         min_tracking_confidence=0.5,
     )
     return mp_vision.HandLandmarker.create_from_options(opts)
+
+
+def _make_pose_landmarker():
+    opts = mp_vision.PoseLandmarkerOptions(
+        base_options=mp_tasks.BaseOptions(model_asset_path=str(POSE_MODEL_PATH)),
+        running_mode=mp_vision.RunningMode.IMAGE,
+        min_pose_detection_confidence=0.5,
+        min_pose_presence_confidence=0.5,
+        min_tracking_confidence=0.5,
+    )
+    return mp_vision.PoseLandmarker.create_from_options(opts)
 
 
 # ── Two-pass frame selection ──────────────────────────────────────────────────
@@ -92,15 +117,29 @@ def find_signing_window(cap, total, hand_det):
 
 # ── Drawing ───────────────────────────────────────────────────────────────────
 
-def draw_keypoints(frame_bgr, hand_res):
-    """Draw a red dot for every detected hand landmark on the frame."""
-    h, w  = frame_bgr.shape[:2]
-    out   = frame_bgr.copy()
-    for hand_landmarks in hand_res.hand_landmarks:
+def draw_keypoints(frame_bgr, hand_res, pose_res):
+    """Draw all keypoints used by the transformer models.
+    Left hand = red, right hand = green, pose = blue.
+    """
+    h, w = frame_bgr.shape[:2]
+    out  = frame_bgr.copy()
+
+    # Hand landmarks — colour by chirality
+    for i, hand_landmarks in enumerate(hand_res.hand_landmarks):
+        label = hand_res.handedness[i][0].category_name  # "Left" or "Right"
+        color = COLOR_LEFT_HAND if label == "Left" else COLOR_RIGHT_HAND
         for lm in hand_landmarks:
             px = int(lm.x * w)
             py = int(lm.y * h)
-            cv2.circle(out, (px, py), DOT_RADIUS, DOT_COLOR, thickness=-1)
+            cv2.circle(out, (px, py), DOT_RADIUS, color, thickness=-1)
+
+    # Pose landmarks — blue
+    if pose_res.pose_landmarks:
+        for lm in pose_res.pose_landmarks[0]:
+            px = int(lm.x * w)
+            py = int(lm.y * h)
+            cv2.circle(out, (px, py), DOT_RADIUS, COLOR_POSE, thickness=-1)
+
     return out
 
 
@@ -123,7 +162,7 @@ def main():
     out_path = OUTPUT_DIR / f"{stem}.gif"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    ensure_model()
+    ensure_models()
 
     cap = cv2.VideoCapture(str(video_path))
     if not cap.isOpened():
@@ -136,11 +175,12 @@ def main():
     fps   = cap.get(cv2.CAP_PROP_FPS)
     print(f"Video      : {video_path.name}")
     print(f"Resolution : {w}x{h}  FPS: {fps:.1f}  Frames: {total}")
+    print(f"Keypoints  : left hand (red) + right hand (green) + pose (blue)")
 
     pil_frames = []
 
-    with _make_hand_landmarker() as hand_det:
-        # Pass 1 — find signing window
+    with _make_hand_landmarker() as hand_det, _make_pose_landmarker() as pose_det:
+        # Pass 1 — find signing window using hand detection
         first_frame, last_frame, found = find_signing_window(cap, total, hand_det)
         if found:
             print(f"Signing window : frame {first_frame} → {last_frame} "
@@ -162,13 +202,15 @@ def main():
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_img    = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
             hand_res  = hand_det.detect(mp_img)
+            pose_res  = pose_det.detect(mp_img)
 
-            annotated_bgr = draw_keypoints(frame, hand_res)
+            annotated_bgr = draw_keypoints(frame, hand_res, pose_res)
 
             n_hands = len(hand_res.hand_landmarks)
-            label   = f"frame {vid_idx}  hands: {n_hands}"
+            n_pose  = len(pose_res.pose_landmarks) if pose_res.pose_landmarks else 0
+            label   = f"frame {vid_idx}  hands: {n_hands}  pose: {n_pose}"
             cv2.putText(annotated_bgr, label, (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
             # Convert BGR → RGB for PIL
             annotated_rgb = cv2.cvtColor(annotated_bgr, cv2.COLOR_BGR2RGB)
@@ -192,7 +234,8 @@ def main():
     )
 
     print(f"\nSaved {len(pil_frames)}-frame GIF → {out_path}")
-    print(f"Frames with no hands detected: {no_hands}/{len(pil_frames)}")
+    print(f"Frames with no hands detected : {no_hands}/{len(pil_frames)}")
+    print("Colours: red = left hand, green = right hand, blue = pose")
     print("Open the .gif in any browser (drag and drop) or Windows Photos.")
 
 
